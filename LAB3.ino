@@ -1,7 +1,12 @@
 
+//defineing the pins for LED, button and signal port
 #define task4LED 4
 #define signalT1 3
 #define task4Pot 8
+#define buttonLED 9
+#define button 12
+
+
 unsigned long time1;
 unsigned long time2;
 //task 2 perameters
@@ -9,27 +14,33 @@ const int task2SW = 7;
 int freq2Val;
 float task2Tot;
 float task2Freq;
-float total2Freq;
 //task 3 perameters
 const int task3SW = 2;
 int freq3Val;
 float task3Tot;
 float task3Freq;
-float total3Freq;
+
 //task4 perameters
 unsigned int analogVal[4];
 int sumVoltage = 0;
-int voltage;
+int counter = 0;
+float voltage = 0;
 float avarageVoltage = 0;
-static SemaphoreHandle_t semi
-static SemaphoreHandle_t semi2
-static SemaphoreHandle_t semi3
 
-//button LED
-#define buttonLED 9
-#define button 12
+//button and debouncing 
+int buttonBounce = 0;
+int buttonLED = 0;
 
+//task 2 and 3 struct for task 5
+struct task1_2{
+  unsigned int task2Freq;
+  unsigned int task3Freq;
+}freqs;
 
+//semaphores for task 2, 3 and 5
+static SemaphoreHandle_t sema;
+static SemaphoreHandle_t sema2;
+static SemaphoreHandle_t sema3;
 
 
 
@@ -105,9 +116,11 @@ xTaskCreatePinnedToCore(
   pinMode (task4LED, OUTPUT);
   pinMode (buttonLED, OUTPUT);
   pinMode (button, INPUT);
+  pinMode (LED_BUILTIN, OUTPUT);
   sema = xSemaphoreCreateBinary();
   sema2 = xSemaphoreCreateBinary();
   sema3 = xSemaphoreCreateBinary();
+
 }
 
 
@@ -117,6 +130,8 @@ void loop(void){}
 void task1(void*parameter){
 while(1){
 
+  TickType_t TaskBegin = xTaskGetTickCount();
+
     digitalWrite(signalT1, HIGH);
      delayMicroseconds(200);
     digitalWrite(signalT1, LOW);
@@ -125,7 +140,7 @@ while(1){
      delayMicroseconds(30);
     digitalWrite(signalT1, LOW);
 
-      vTaskDelay(500/portTICK_PERIOD_MS)
+  vTaskDelayUntil(&TaskBegin, 4/portTICK_PERIOD_MS);
 }
 
 }
@@ -133,33 +148,29 @@ while(1){
 void task2(void*parameter){
  
 while(1){
-  
+ TickType_t TaskBegin = xTaskGetTickCount();
+ 
   freq2Val = pulseIn(task2SW,HIGH,1000);
   task2Tot = (freq2Val*2);
-  task2Freq = 1000000/task2Tot;
+  freqs. task2Freq = 1000000/task2Tot;
+  xSemaphoreGive(sema);
 
-  
-
-
-xSemaphoreGive(sema);
+  vTaskDelayUntil(&TaskBegin, 20/portTICK_PERIOD_MS);
 
 }
 }
-
-
 
 void task3(void*parameter){
 
  while(1){
+  TickType_t TaskBegin = xTaskGetTickCount();
   
   freq3Val = pulseIn(task3SW,HIGH,1000);
   task3Tot = (freq3Val*2);
-  task3Freq = 1000000/task3Tot;
+  freqs. task3Freq = 1000000/task3Tot;
+  xSemaphoreGive(sema2);
 
-
-xSemaphoreGive(sema2);
-
-
+  vTaskDelayUntil(&TaskBegin, 8/portTICK_PERIOD_MS);
  }
 }
 
@@ -167,19 +178,21 @@ xSemaphoreGive(sema2);
 void task4(void*parameter){
 
 while(1){
-  for (int i = 0; i < 4; i++){
+
+  TickType_t TaskBegin = xTaskGetTickCount();
   
-  analogVal[i] = analogRead(task4Pot);
+  if(counter <= 3){
   
-  }
+    counter = 0;  
+}
 
-  for ( int i = 0; i < 4; i++){
+ analogVal[counter] = analogRead(task4Pot);
+ 
+ 
 
-    sumVoltage += analogVal[i]; 
-  }
-
-  avarageVoltage = sumVoltage/4;
-
+  avarageVoltage = (analogVal[0]+analogVal[1]+analogVal[2]+analogVal[3])/4; 
+  counter++;
+  
   voltage = avarageVoltage*(3.3/4095.0);
 
   if (voltage >= 1.65){
@@ -193,21 +206,19 @@ while(1){
   digitalWrite (task4LED, LOW);    
 
   }
+  vTaskDelayUntil(&TaskBegin, 20/portTICK_PERIOD_MS);
+}
 
   
-  Serial.print(voltage);
-  Serial.print('V');
-
-  if (avarageVoltage > 2047){
-    Serial.print ('Voltage too high');
-  }
-}
 }
 
 
 
 void task5(void*parameter){
 while(1){
+  
+TickType_t TaskBegin = xTaskGetTickCount();
+  
 xSemaphoreTake(sema,0);
 xSemaphoreTake(sema2,0);
   int Frequancy2task5 = map(task2Freq, 333, 1000, 0, 99);
@@ -219,31 +230,44 @@ xSemaphoreTake(sema2,0);
 Serial.print(Frequancy2task5);
 Serial.print(Frequancy3task5);
 
-
+  vTaskDelayUntil(&TaskBegin, 100/portTICK_PERIOD_MS);
   }
 }
 
-void buttonRead (void*parameter){
+void ButtonRead (void*parameter){
   while (1){
+TickType_t TaskBegin = xTaskGetTickCount();
 
-  buttonPress = digitalRead (buttton);
+  ButtonPress = digitalRead (button);
 
+  if (ButtonPress != buttonBounce){
+    if (ButtonPress == 0 );
+      buttonLED++
+  }
+    
 
   xSemaphoreGive(sema3);
+
+  vTaskDelayUntil(&TaskBegin, 8/portTICK_PERIOD_MS);
   }
   
 }
 
-void buttonWrite(void*parameter){
+void ButtonWrite(void*parameter){
 while (1){
+
+TickType_t TaskBegin = xTaskGetTickCount();
+  
 xSemaphoreTake (sema3,0);
 
-  if (buttonPress = HIGH){
-    digitalWrite ()
+  if (buttonLED > 0){
+    digitalWrite (LED_BUILTIN, HIGH);
+    delay(500);
+    digitalWrite (LED_BUILTIN,LOW);
   }
+
+  buttonLED = 0;
   
+  vTaskDelayUntil(&TaskBegin, 8/portTICK_PERIOD_MS);
 }  
 }
-
-
-
